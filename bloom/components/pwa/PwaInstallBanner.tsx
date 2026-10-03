@@ -8,21 +8,26 @@ const DISMISS_KEY = "bloom_install_dismissed";
 
 /** One small, dismissible nudge to add Bloom to the home screen. */
 export default function PwaInstallBanner() {
-  const { canInstall, isInstalled, install } = usePwaInstall();
+  const { canInstall, isInstalled, isIos, install } = usePwaInstall();
   const dismissed = useStored(DISMISS_KEY) === "1";
 
-  if (isInstalled || dismissed || !canInstall) return null;
+  // iPhones have no install prompt, so they get written steps instead of a button.
+  if (isInstalled || dismissed || (!canInstall && !isIos)) return null;
 
   return (
     <div className="flex items-center gap-3 rounded-3xl border border-line bg-lilac-soft p-4">
       <Sticker emoji="📲" size={44} tilt={-8} />
       <div className="min-w-0 flex-1">
         <p className="text-sm font-extrabold text-ink">Add Bloom to your home screen</p>
-        <p className="text-xs text-muted">Opens like an app, one tap away.</p>
+        <p className="text-xs text-muted">
+          {canInstall ? "Opens like an app, one tap away." : "Tap the Share button below, then “Add to Home Screen”."}
+        </p>
       </div>
-      <button type="button" onClick={install} className="btn btn-primary min-h-10 px-4 text-sm">
-        Install
-      </button>
+      {canInstall ? (
+        <button type="button" onClick={install} className="btn btn-primary min-h-10 px-4 text-sm">
+          Install
+        </button>
+      ) : null}
       <button
         type="button"
         aria-label="Dismiss"

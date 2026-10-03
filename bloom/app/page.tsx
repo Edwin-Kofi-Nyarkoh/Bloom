@@ -1,6 +1,7 @@
 import Link from "next/link";
 import BloomFlower from "@/components/ui/BloomFlower";
 import Sticker from "@/components/ui/Sticker";
+import ThemeToggle from "@/components/ui/ThemeToggle";
 
 const FEATURES = [
   { emoji: "📅", title: "Know what's coming", body: "See when your next period and fertile days are likely.", tint: "var(--primary-soft)" },
@@ -17,9 +18,12 @@ export default function Home() {
             <BloomFlower size={34} />
             <span className="font-display text-2xl font-semibold text-ink">Bloom</span>
           </div>
-          <Link href="/login" className="rounded-full px-4 py-2.5 text-sm font-extrabold text-primary-ink">
-            Sign in
-          </Link>
+          <div className="flex items-center gap-1">
+            <Link href="/login" className="rounded-full px-4 py-2.5 text-sm font-extrabold text-primary-ink">
+              Sign in
+            </Link>
+            <ThemeToggle />
+          </div>
         </header>
 
         <section className="relative pt-6 text-center">

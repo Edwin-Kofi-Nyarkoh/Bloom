@@ -40,13 +40,14 @@ export default function DashboardPage() {
   const [firstPeriod, setFirstPeriod] = useState("");
   const [logOpen, setLogOpen] = useState(false);
   const [logDate, setLogDate] = useState("");
+  const [logEnd, setLogEnd] = useState("");
 
   const openCycle = cycles.find((cycle) => !cycle.endDate && toKey(cycle.startDate) === prediction?.lastPeriodStart);
   const todayMood = symptoms.find((symptom) => toKey(symptom.date) === today)?.mood;
 
   const startPeriod = useMutation({
-    mutationFn: async (startDate: string) => {
-      await api.post("/cycles", { startDate }, authHeader(token));
+    mutationFn: async (period: string | { startDate: string; endDate?: string }) => {
+      await api.post("/cycles", typeof period === "string" ? { startDate: period } : period, authHeader(token));
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cycles"] });
@@ -202,7 +203,7 @@ export default function DashboardPage() {
               className="space-y-2.5 rounded-2xl bg-bg p-3.5"
               onSubmit={(event) => {
                 event.preventDefault();
-                if (logDate) startPeriod.mutate(logDate);
+                if (logDate) startPeriod.mutate({ startDate: logDate, endDate: logEnd || undefined });
               }}
             >
               <label className="block text-sm font-bold text-ink" htmlFor="log-period-date">
@@ -215,6 +216,18 @@ export default function DashboardPage() {
                 max={today ?? undefined}
                 value={logDate}
                 onChange={(event) => setLogDate(event.target.value)}
+                className="field"
+              />
+              <label className="block text-sm font-bold text-ink" htmlFor="log-period-end">
+                When did it end? <span className="font-normal text-muted">(skip if it hasn&apos;t)</span>
+              </label>
+              <input
+                id="log-period-end"
+                type="date"
+                min={logDate || undefined}
+                max={today ?? undefined}
+                value={logEnd}
+                onChange={(event) => setLogEnd(event.target.value)}
                 className="field"
               />
               <div className="grid grid-cols-2 gap-2.5">
@@ -231,6 +244,7 @@ export default function DashboardPage() {
               type="button"
               onClick={() => {
                 setLogDate(today ?? "");
+                setLogEnd("");
                 setLogOpen(true);
               }}
               className="btn btn-primary w-full"

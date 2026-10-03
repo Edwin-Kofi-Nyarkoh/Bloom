@@ -7,7 +7,7 @@ import AuthGate from "@/components/layout/AuthGate";
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   return (
     <AuthGate>
-      <div className="bloom-bg min-h-screen px-4 pb-28 pt-4 md:px-6 md:pb-10 md:pt-6">
+      <div className="bloom-bg min-h-screen px-4 pb-28 pt-2 md:px-6 md:pb-10 md:pt-6">
         <div className="mx-auto flex max-w-4xl gap-6">
           <Sidebar />
           <div className="min-w-0 flex-1 space-y-5">
