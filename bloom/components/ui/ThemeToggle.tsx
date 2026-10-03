@@ -9,9 +9,8 @@ export default function ThemeToggle() {
     <button
       type="button"
       onClick={toggle}
-      aria-label="Toggle theme"
-      className="rounded-full border border-[#f0d6df] p-2 text-[#5a2d4b]"
-      style={{ borderColor: "var(--border)", color: "var(--foreground)" }}
+      aria-label={resolved === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+      className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-line bg-surface text-ink transition active:scale-95"
     >
       {resolved === "dark" ? (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getAuthUserId } from "@/lib/serverAuth";
+import { serverError } from "@/lib/apiHelpers";
 
 const notificationSchema = z.object({
   type: z.enum(["PERIOD_START", "PERIOD_END", "FERTILITY_WINDOW", "SYMPTOM_REMINDER"]),
@@ -44,8 +45,8 @@ export async function PUT(
     });
 
     return NextResponse.json({ notification });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Internal server error" }, { status: 500 });
+  } catch (err) {
+    return serverError(err);
   }
 }
 
@@ -70,8 +71,8 @@ export async function DELETE(
 
     await prisma.notification.delete({ where: { id: existing.id } });
     return NextResponse.json({ success: true });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Internal server error" }, { status: 500 });
+  } catch (err) {
+    return serverError(err);
   }
 }
 

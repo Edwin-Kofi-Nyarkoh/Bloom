@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getAuthUserId } from "@/lib/serverAuth";
+import { serverError } from "@/lib/apiHelpers";
 
 const symptomSchema = z.object({
   date: z.string(),
@@ -50,8 +51,8 @@ export async function PUT(
     });
 
     return NextResponse.json({ symptom });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Internal server error" }, { status: 500 });
+  } catch (err) {
+    return serverError(err);
   }
 }
 
@@ -76,8 +77,8 @@ export async function DELETE(
 
     await prisma.symptom.delete({ where: { id: existing.id } });
     return NextResponse.json({ success: true });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Internal server error" }, { status: 500 });
+  } catch (err) {
+    return serverError(err);
   }
 }
 

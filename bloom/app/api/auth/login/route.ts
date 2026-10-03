@@ -3,16 +3,12 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { signToken } from "@/lib/serverAuth";
+import { sanitizeUser, serverError } from "@/lib/apiHelpers";
 
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
 });
-
-function sanitizeUser(user: { passwordHash?: string | null } & Record<string, any>) {
-  const { passwordHash, ...safeUser } = user;
-  return safeUser;
-}
 
 export async function POST(req: NextRequest) {
   try {
@@ -35,8 +31,8 @@ export async function POST(req: NextRequest) {
 
     const token = signToken(user.id);
     return NextResponse.json({ token, user: sanitizeUser(user) });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Internal server error" }, { status: 500 });
+  } catch (err) {
+    return serverError(err);
   }
 }
 

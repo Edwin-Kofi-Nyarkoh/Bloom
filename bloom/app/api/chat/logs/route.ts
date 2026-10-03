@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUserId } from "@/lib/serverAuth";
 import { purgeOldLogs } from "@/lib/chatLogic";
+import { serverError } from "@/lib/apiHelpers";
 
 export async function GET(req: NextRequest) {
   const userId = await getAuthUserId(req);
@@ -16,8 +17,21 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: "asc" },
     });
     return NextResponse.json({ logs });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Internal server error" }, { status: 500 });
+  } catch (err) {
+    return serverError(err);
   }
 }
 
+export async function DELETE(req: NextRequest) {
+  const userId = await getAuthUserId(req);
+  if (!userId) {
+    return NextResponse.json({ error: "Missing or invalid auth token" }, { status: 401 });
+  }
+
+  try {
+    await prisma.chatLog.deleteMany({ where: { userId } });
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    return serverError(err);
+  }
+}

@@ -5,7 +5,10 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { signToken } from "@/lib/serverAuth";
 
-const providers: any[] = [
+/** Sent to the login page when sign-in fails for a reason other than a wrong email or password. */
+export const SERVER_ERROR = "server_error";
+
+const providers: NextAuthOptions["providers"] = [
   Credentials({
     name: "Credentials",
     credentials: {
@@ -17,9 +20,16 @@ const providers: any[] = [
         return null;
       }
 
-      const user = await prisma.user.findUnique({
-        where: { email: credentials.email },
-      });
+      let user;
+      try {
+        user = await prisma.user.findUnique({
+          where: { email: credentials.email.trim() },
+        });
+      } catch (error) {
+        // A database problem must not look like a wrong password.
+        console.error("Sign-in could not reach the database:", error);
+        throw new Error(SERVER_ERROR);
+      }
 
       if (!user || !user.passwordHash) {
         return null;
@@ -30,13 +40,11 @@ const providers: any[] = [
         return null;
       }
 
-      const token = signToken(user.id);
-
       return {
         id: user.id,
         email: user.email,
-        accessToken: token,
-      } as any;
+        accessToken: signToken(user.id),
+      };
     },
   }),
 ];
@@ -57,15 +65,15 @@ export const authConfig: NextAuthOptions = {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.accessToken = (user as any).accessToken || signToken(user.id);
+        token.accessToken = user.accessToken || signToken(user.id);
         token.sub = user.id;
       }
       return token;
     },
     async session({ session, token }) {
-      (session as any).accessToken = token.accessToken;
+      session.accessToken = token.accessToken;
       if (session.user && token.sub) {
-        (session.user as any).id = token.sub;
+        session.user.id = token.sub;
       }
       return session;
     },

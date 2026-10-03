@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { signIn } from "next-auth/react";
-import api from "@/lib/api";
+import api, { apiErrorMessage } from "@/lib/api";
+import { writeStored } from "@/lib/browserStore";
 import { useState } from "react";
-import ThemeToggle from "@/components/ui/ThemeToggle";
+import AuthShell from "@/components/layout/AuthShell";
 
 type LoginForm = { email: string; password: string };
 
@@ -26,13 +27,17 @@ export default function LoginPage() {
         redirect: false,
       });
 
-      if (result?.error) {
-        setError("Invalid credentials. Please try again.");
-      } else if (result?.ok) {
-        window.location.href = "/dashboard";
+      if (result?.ok && !result.error) {
+        // A signed-in account replaces any guest session on this device.
+        writeStored("bloom_anon_token", null);
+        window.location.assign("/dashboard");
+      } else if (result?.error === "CredentialsSignin") {
+        setError("That email or password isn't right. Please try again.");
+      } else {
+        setError("We couldn't reach the server just now. Please try again in a moment.");
       }
-    } catch (err: any) {
-      setError(err?.message || "Failed to sign in. Please try again.");
+    } catch {
+      setError("We couldn't reach the server just now. Please try again in a moment.");
     } finally {
       setIsLoading(false);
     }
@@ -44,79 +49,60 @@ export default function LoginPage() {
     try {
       const response = await api.post("/auth/anonymous");
       if (response.data?.token) {
-        localStorage.setItem("bloom_anon_token", response.data.token);
-        window.location.href = "/dashboard";
+        writeStored("bloom_anon_token", response.data.token);
+        window.location.assign("/dashboard");
       } else {
-        setError("Failed to create anonymous session. Please try again.");
+        setError("Couldn't start guest mode. Please try again.");
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error("Anonymous login error:", err);
-      const serverMsg = err?.response?.data?.error;
-      setError(serverMsg || "Unable to connect to the server. Please check that the server is running and try again.");
+      setError(apiErrorMessage(err, "Couldn't reach the server. Please try again."));
     } finally {
       setIsAnonLoading(false);
     }
   };
 
   return (
-    <main className="bloom-gradient min-h-screen px-6 py-16">
-      <div className="mx-auto grid max-w-5xl gap-10 rounded-3xl p-10 shadow-lg shadow-pink-100 md:grid-cols-2"
-           style={{ backgroundColor: "color-mix(in srgb, var(--card) 92%, transparent)" }}>
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <p className="text-xs uppercase tracking-[0.3em]" style={{ color: "var(--accent)" }}>
-              Bloom
-            </p>
-            <ThemeToggle />
-          </div>
-          <h1 className="font-display text-3xl" style={{ color: "var(--foreground)" }}>
-            Welcome back
-          </h1>
-          <p className="text-sm" style={{ color: "var(--muted)" }}>
-            Sign in to keep tracking your cycle and update your predictions.
-          </p>
-        </div>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+    <AuthShell title="Welcome back" subtitle="Sign in to see your cycle.">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
+        <label className="block">
+          <span className="mb-1.5 block text-sm font-bold text-ink">Email</span>
           <input
             {...register("email", { required: true })}
             type="email"
-            placeholder="Email"
-            className="w-full rounded-2xl border px-4 py-3 text-sm"
-            style={{ borderColor: "var(--border)", backgroundColor: "var(--card)", color: "var(--foreground)" }}
+            autoComplete="email"
+            placeholder="you@example.com"
+            className="field"
           />
+        </label>
+        <label className="block">
+          <span className="mb-1.5 block text-sm font-bold text-ink">Password</span>
           <input
             {...register("password", { required: true })}
             type="password"
-            placeholder="Password"
-            className="w-full rounded-2xl border px-4 py-3 text-sm"
-            style={{ borderColor: "var(--border)", backgroundColor: "var(--card)", color: "var(--foreground)" }}
+            autoComplete="current-password"
+            placeholder="Your password"
+            className="field"
           />
-          {error ? <p className="text-sm text-red-500">{error}</p> : null}
-          <button
-            type="submit"
-            disabled={isLoading || isAnonLoading}
-            className="w-full rounded-2xl px-4 py-3 text-sm font-semibold text-white transition disabled:opacity-60"
-            style={{ backgroundColor: "var(--accent)" }}
-          >
-            {isLoading ? "Signing in..." : "Sign in"}
-          </button>
-          <button
-            type="button"
-            disabled={isLoading || isAnonLoading}
-            onClick={handleAnonymous}
-            className="w-full rounded-2xl border px-4 py-3 text-sm font-semibold transition disabled:opacity-60"
-            style={{ borderColor: "var(--border)", color: "var(--foreground)" }}
-          >
-            {isAnonLoading ? "Connecting anonymously..." : "Continue anonymously"}
-          </button>
-          <p className="text-sm" style={{ color: "var(--muted)" }}>
-            New here?{" "}
-            <Link href="/signup" className="font-semibold" style={{ color: "var(--accent)" }}>
-              Create an account
-            </Link>
+        </label>
+        {error ? (
+          <p role="alert" className="text-sm font-bold text-danger">
+            {error}
           </p>
-        </form>
-      </div>
-    </main>
+        ) : null}
+        <button type="submit" disabled={isLoading || isAnonLoading} className="btn btn-primary w-full">
+          {isLoading ? "Signing in..." : "Sign in"}
+        </button>
+        <button type="button" disabled={isLoading || isAnonLoading} onClick={handleAnonymous} className="btn btn-ghost w-full">
+          {isAnonLoading ? "Starting..." : "Try without an account"}
+        </button>
+        <p className="pt-2 text-center text-sm text-muted">
+          New here?{" "}
+          <Link href="/signup" className="font-extrabold text-primary-ink">
+            Create an account
+          </Link>
+        </p>
+      </form>
+    </AuthShell>
   );
 }

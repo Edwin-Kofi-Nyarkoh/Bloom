@@ -1,31 +1,25 @@
 import Link from "next/link";
-import SignOutButton from "../ui/SignOutButton";
-import ThemeToggle from "../ui/ThemeToggle";
-import PwaInstallButton from "../pwa/PwaInstallButton";
+import BloomFlower from "@/components/ui/BloomFlower";
+import ThemeToggle from "@/components/ui/ThemeToggle";
+import { SettingsIcon } from "@/components/ui/icons";
 
+/** Slim header for phones: logo on the left, theme and settings on the right. */
 export default function Topbar() {
   return (
-    <header
-      className="flex items-center justify-between rounded-3xl px-6 py-4 glass-card shadow-lg"
-      style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}
-    >
-      <div>
-        <p className="text-xs uppercase tracking-[0.25em] font-extrabold text-[#ff5277]">Bloom Monolith</p>
-        <h2 className="font-display text-xl font-bold" style={{ color: "var(--foreground)" }}>
-          Gentle Wellness
-        </h2>
-      </div>
-      <div className="flex items-center gap-2 md:gap-3">
-        <PwaInstallButton />
+    <header className="flex items-center justify-between md:hidden">
+      <Link href="/dashboard" className="flex items-center gap-2">
+        <BloomFlower size={34} />
+        <span className="font-display text-2xl font-semibold text-ink">Bloom</span>
+      </Link>
+      <div className="flex items-center gap-2">
         <ThemeToggle />
         <Link
           href="/settings"
-          className="rounded-full px-4 py-2 text-xs md:text-sm font-semibold transition hover:scale-105"
-          style={{ backgroundColor: "color-mix(in srgb, var(--accent) 12%, var(--card))", color: "var(--foreground)" }}
+          aria-label="Settings"
+          className="flex h-11 w-11 items-center justify-center rounded-full border border-line bg-surface text-ink"
         >
-          ⚙️ Settings
+          <SettingsIcon size={20} />
         </Link>
-        <SignOutButton />
       </div>
     </header>
   );

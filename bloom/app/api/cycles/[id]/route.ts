@@ -1,18 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getAuthUserId } from "@/lib/serverAuth";
-
-const cycleSchema = z.object({
-  startDate: z.string(),
-  endDate: z.string().optional(),
-});
-
-function monthRange(date: Date) {
-  const start = new Date(date.getFullYear(), date.getMonth(), 1);
-  const next = new Date(date.getFullYear(), date.getMonth() + 1, 1);
-  return { start, next };
-}
+import { cycleSchema, validateCycle } from "@/lib/cycleRules";
+import { serverError } from "@/lib/apiHelpers";
 
 export async function PUT(
   req: NextRequest,
@@ -29,7 +19,7 @@ export async function PUT(
     const body = await req.json();
     const parsed = cycleSchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+      return NextResponse.json({ error: "Please choose a start date." }, { status: 400 });
     }
 
     const existing = await prisma.cycle.findFirst({
@@ -39,33 +29,22 @@ export async function PUT(
       return NextResponse.json({ error: "Cycle not found" }, { status: 404 });
     }
 
-    const start = new Date(parsed.data.startDate);
-    const range = monthRange(start);
-    const conflict = await prisma.cycle.findFirst({
-      where: {
-        userId,
-        startDate: { gte: range.start, lt: range.next },
-        NOT: { id: existing.id },
-      },
-    });
-    if (conflict) {
-      return NextResponse.json(
-        { error: "A period start is already logged for this month." },
-        { status: 409 }
-      );
+    const checked = await validateCycle(userId, parsed.data, existing.id);
+    if ("error" in checked) {
+      return NextResponse.json({ error: checked.error }, { status: checked.status });
     }
 
     const cycle = await prisma.cycle.update({
       where: { id: existing.id },
       data: {
-        startDate: start,
-        endDate: parsed.data.endDate ? new Date(parsed.data.endDate) : null,
+        startDate: new Date(checked.start),
+        endDate: checked.end ? new Date(checked.end) : null,
       },
     });
 
     return NextResponse.json({ cycle });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Internal server error" }, { status: 500 });
+  } catch (err) {
+    return serverError(err);
   }
 }
 
@@ -90,8 +69,7 @@ export async function DELETE(
 
     await prisma.cycle.delete({ where: { id: existing.id } });
     return NextResponse.json({ success: true });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Internal server error" }, { status: 500 });
+  } catch (err) {
+    return serverError(err);
   }
 }
-

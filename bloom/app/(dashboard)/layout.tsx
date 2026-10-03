@@ -1,21 +1,22 @@
 import { ReactNode } from "react";
 import Sidebar from "@/components/layout/Sidebar";
 import Topbar from "@/components/layout/Topbar";
-import MobileNav from "@/components/layout/MobileNav";
+import BottomNav from "@/components/layout/BottomNav";
+import AuthGate from "@/components/layout/AuthGate";
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="bloom-gradient min-h-screen px-6 py-10">
-      <div className="mx-auto flex max-w-6xl gap-6">
-        <Sidebar />
-        <div className="flex-1 space-y-6">
-          <div className="sticky top-4 z-50 md:hidden">
-            <MobileNav />
+    <AuthGate>
+      <div className="bloom-bg min-h-screen px-4 pb-28 pt-4 md:px-6 md:pb-10 md:pt-6">
+        <div className="mx-auto flex max-w-4xl gap-6">
+          <Sidebar />
+          <div className="min-w-0 flex-1 space-y-5">
+            <Topbar />
+            <main className="mx-auto max-w-xl space-y-5 md:mx-0 md:max-w-none">{children}</main>
           </div>
-          <Topbar />
-          {children}
         </div>
       </div>
-    </div>
+      <BottomNav />
+    </AuthGate>
   );
 }

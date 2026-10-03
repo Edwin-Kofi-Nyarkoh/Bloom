@@ -1,123 +1,69 @@
-# Bloom MVP
+# Bloom
 
+Bloom is a simple, mobile-first period and cycle tracker with a friendly AI guide. It is a single Next.js app (web + installable PWA) in [`bloom/`](bloom/): the pages, the API routes, the prediction engine, and Bloom AI all live in that one project.
 
-Email: demo@bloom.app
-Password: Password123!
+## Demo account
 
-Bloom is a cross-platform menstrual tracking MVP with a Next.js web app, React Native mobile app, Node.js + TypeScript API, PostgreSQL storage, an AI prediction module, and a gateway server for rate limiting/IP filtering.
+There is one seeded account for testing:
 
-## Architecture
+- Email: `demo@bloom.app`
+- Password: `Password123!`
 
-- `bloom/` Next.js web app (NextAuth + TanStack Query)
-- `BloomMobile/` React Native app (JWT auth + TanStack Query)
-- `backend/api/` Express API + Prisma + AI prediction module
-- `backend/gateway/` Express gateway for IP filtering + rate limiting
+The seed only ever creates or resets this one account. Every account created through **Sign up** starts empty and shows a welcome screen until the user logs her first period.
 
-## Core Features
+## Features
 
-- Email/password signup + login (OAuth-ready for web)
-- Anonymous mode
-- Cycle logging (start/end)
-- Symptom logging (mood, cramps, sleep, energy)
-- Calendar view
-- Dashboard predictions (next period, ovulation, PMS)
-- Notifications (local reminders on mobile)
-- Chatbot guidance (web + mobile)
+- Email/password accounts and guest mode
+- One-tap period logging and a calendar showing logged periods, expected periods, and fertile days
+- Daily check-in with mood stickers, cramps, energy, sleep, and notes (one entry per day)
+- Predictions for the next period, fertile window, and ovulation, weighted toward recent cycles, with a confidence level and a late-period state
+- Charts: cycle ring, cycle-length history, and how you feel in each phase
+- Bloom AI chat that knows the user's cycle and can also just talk
+- Light and dark themes, installable PWA with an offline page
 
 ## Setup
 
-### 1) Backend API
-
-```
-cd backend/api
-cp .env.example .env
-npm install
-npm run prisma:generate
-npm run prisma:migrate
-npm run dev
-```
-
-The API runs on `http://localhost:4000` by default.
-
-### 2) Gateway Server
-
-```
-cd backend/gateway
-cp .env.example .env
-npm install
-npm run dev
-```
-
-The gateway runs on `http://localhost:3001` and proxies to the API.
-
-### 3) Web App (Next.js)
-
-```
+```bash
 cd bloom
-cp .env.example .env.local
+cp .env.example .env      # then fill in the values
 pnpm install
+pnpm db:push              # create the tables (first time only)
+pnpm db:seed              # create or reset the demo account
 pnpm dev
 ```
 
 Open `http://localhost:3000`.
 
-### 4) Mobile App (React Native)
+### Environment variables
+
+| Variable | Purpose |
+| --- | --- |
+| `DATABASE_URL` | PostgreSQL connection string |
+| `JWT_SECRET` | Signs API tokens |
+| `NEXTAUTH_URL`, `NEXTAUTH_SECRET` | NextAuth session settings |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Optional Google sign-in |
+| `ANTHROPIC_API_KEY` | Optional. Turns on Claude-powered Bloom AI |
+| `BLOOM_AI_MODEL` | Optional. Claude model override (default `claude-opus-5-5`) |
+
+## Bloom AI
+
+With `ANTHROPIC_API_KEY` set, chat messages are answered by Claude. Each request includes a summary of the user's cycle (cycle day, phase, next period, fertile window, recent check-ins) and the recent conversation, so answers are personal and follow-up questions work. Without a key, or if the AI service is unreachable, Bloom answers from a built-in reply engine, so chat always works.
+
+- Claude integration and prompt: `bloom/lib/bloomAI.ts`
+- Built-in replies: `bloom/lib/chatLogic.ts`
+- Prediction engine: `bloom/lib/predictor.ts`
+
+## Project layout
 
 ```
-cd BloomMobile
-npm install
-npm run android   # or npm run ios
+bloom/
+  app/            pages and API routes (app/api/*)
+  components/     UI, charts, chat, PWA pieces
+  lib/            predictions, AI, auth, date helpers
+  prisma/         schema and demo seed
+  public/         manifest, service worker, icons
 ```
 
-Update `BloomMobile/src/services/api.ts` with your machine IP if running on a physical device.
+## A note on predictions
 
-## Database Initialization
-
-Use Prisma migrations:
-
-```
-cd backend/api
-npm run prisma:migrate
-```
-
-Or run the SQL schema directly:
-
-```
-psql "postgresql://postgres:password@localhost:5432/bloom" -f backend/api/scripts/init.sql
-```
-
-## AI Predictions
-
-The AI module currently uses a simple baseline algorithm (average cycle length) in:
-
-- `backend/api/src/ai/predictor.ts`
-
-You can replace this with TensorFlow.js or a Python microservice later.
-
-## API Endpoints (Gateway)
-
-- `POST /auth/register`
-- `POST /auth/login`
-- `POST /auth/anonymous`
-- `GET /auth/me`
-- `GET /cycles` `POST /cycles` `PUT /cycles/:id` `DELETE /cycles/:id`
-- `GET /symptoms` `POST /symptoms` `PUT /symptoms/:id` `DELETE /symptoms/:id`
-- `GET /notifications` `POST /notifications` `PUT /notifications/:id` `DELETE /notifications/:id`
-- `GET /predictions/next`
-- `POST /chat` `GET /chat/logs`
-
-## Notes
-
-- Web auth uses NextAuth + JWT session strategy.
-- Mobile auth uses JWT directly from the API.
-- Gateway rate-limits all requests and blocks IPs in-memory for the MVP.
-
-## Next Steps
-
-- Replace baseline predictions with TF.js model.
-- Add push notifications via Firebase.
-- Add analytics for symptom trends.
-
----
-
-Bloom was built to be modular, maintainable, and friendly for users and developers.
+Predictions are estimates from logged dates. Bloom shows a chance of pregnancy for each day, but counting days is not reliable birth control and the app says so. It is not a medical device.

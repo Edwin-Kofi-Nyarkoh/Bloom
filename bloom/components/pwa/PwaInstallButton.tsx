@@ -1,59 +1,28 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { usePwaInstall } from "./usePwaInstall";
 
+/** Install control for the Settings screen, with written steps where the browser has no install prompt. */
 export default function PwaInstallButton() {
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [isInstalled, setIsInstalled] = useState(false);
+  const { canInstall, isInstalled, isIos, install } = usePwaInstall();
 
-  useEffect(() => {
-    const handleBeforeInstall = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-    };
+  if (isInstalled) {
+    return <p className="text-sm font-bold text-mint">Bloom is installed on this device ✓</p>;
+  }
 
-    window.addEventListener("beforeinstallprompt", handleBeforeInstall);
-
-    if (window.matchMedia("(display-mode: standalone)").matches) {
-      setIsInstalled(true);
-    }
-
-    return () => {
-      window.removeEventListener("beforeinstallprompt", handleBeforeInstall);
-    };
-  }, []);
-
-  const handleInstall = async () => {
-    if (!deferredPrompt) {
-      alert("To install Bloom on your device: \n• On iPhone/Safari: Tap 'Share' then 'Add to Home Screen'\n• On Android/Chrome: Tap the 3 dots menu and select 'Install app'");
-      return;
-    }
-
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === "accepted") {
-      setDeferredPrompt(null);
-      setIsInstalled(true);
-    }
-  };
-
-  if (isInstalled) return null;
+  if (canInstall) {
+    return (
+      <button type="button" onClick={install} className="btn btn-primary w-full">
+        Install Bloom
+      </button>
+    );
+  }
 
   return (
-    <button
-      type="button"
-      onClick={handleInstall}
-      className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold transition-all shadow-xs hover:scale-105 active:scale-95 cursor-pointer"
-      style={{
-        backgroundColor: "color-mix(in srgb, var(--accent) 18%, var(--card))",
-        color: "var(--accent)",
-        borderColor: "var(--border)",
-        borderWidth: "1px",
-      }}
-      title="Install Bloom as an app on your device"
-    >
-      <span>📲</span>
-      <span>Install App</span>
-    </button>
+    <p className="rounded-2xl bg-bg p-3 text-sm text-muted">
+      {isIos
+        ? "On iPhone: tap the Share button in Safari, then “Add to Home Screen”."
+        : "Open your browser menu and choose “Install app” or “Add to Home screen”."}
+    </p>
   );
 }

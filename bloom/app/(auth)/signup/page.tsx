@@ -2,86 +2,78 @@
 
 import Link from "next/link";
 import { useForm } from "react-hook-form";
-import api from "@/lib/api";
+import { signIn } from "next-auth/react";
+import api, { apiErrorMessage } from "@/lib/api";
+import { writeStored } from "@/lib/browserStore";
 import { useState } from "react";
-import ThemeToggle from "@/components/ui/ThemeToggle";
-
+import AuthShell from "@/components/layout/AuthShell";
 
 type SignupForm = { email: string; password: string };
 
 export default function SignupPage() {
   const { register, handleSubmit } = useForm<SignupForm>();
-  const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   const onSubmit = async (values: SignupForm) => {
-    setMessage(null);
     setError(null);
+    if (values.password.length < 6) {
+      setError("Please use a password with at least 6 characters.");
+      return;
+    }
     setIsLoading(true);
     try {
       await api.post("/auth/register", values);
-      setMessage("Account created successfully! You can now sign in.");
-    } catch (err: any) {
+      // Sign straight in so a new user lands on her own empty Home screen.
+      const result = await signIn("credentials", { ...values, redirect: false });
+      writeStored("bloom_anon_token", null);
+      window.location.assign(result?.ok ? "/dashboard" : "/login");
+    } catch (err) {
       console.error("Signup error:", err);
-      const serverMsg = err?.response?.data?.error;
-      setError(serverMsg || "Failed to create account. Please check your connection and try again.");
-    } finally {
+      const message = apiErrorMessage(err, "Couldn't create your account. Check your email address and try again.");
+      setError(message === "Email already in use" ? "That email already has an account. Try signing in instead." : message);
       setIsLoading(false);
     }
   };
 
   return (
-    <main className="bloom-gradient min-h-screen px-6 py-16">
-      <div className="mx-auto grid max-w-5xl gap-10 rounded-3xl p-10 shadow-lg shadow-pink-100 md:grid-cols-2"
-           style={{ backgroundColor: "color-mix(in srgb, var(--card) 92%, transparent)" }}>
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <p className="text-xs uppercase tracking-[0.3em]" style={{ color: "var(--accent)" }}>
-              Bloom
-            </p>
-            <ThemeToggle />
-          </div>
-          <h1 className="font-display text-3xl" style={{ color: "var(--foreground)" }}>
-            Create your account
-          </h1>
-          <p className="text-sm" style={{ color: "var(--muted)" }}>
-            Start tracking your cycle and symptoms in minutes.
-          </p>
-        </div>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+    <AuthShell title="Create your account" subtitle="It takes less than a minute.">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
+        <label className="block">
+          <span className="mb-1.5 block text-sm font-bold text-ink">Email</span>
           <input
             {...register("email", { required: true })}
             type="email"
-            placeholder="Email"
-            className="w-full rounded-2xl border px-4 py-3 text-sm"
-            style={{ borderColor: "var(--border)", backgroundColor: "var(--card)", color: "var(--foreground)" }}
+            autoComplete="email"
+            placeholder="you@example.com"
+            className="field"
           />
+        </label>
+        <label className="block">
+          <span className="mb-1.5 block text-sm font-bold text-ink">Password</span>
           <input
             {...register("password", { required: true })}
             type="password"
-            placeholder="Password"
-            className="w-full rounded-2xl border px-4 py-3 text-sm"
-            style={{ borderColor: "var(--border)", backgroundColor: "var(--card)", color: "var(--foreground)" }}
+            autoComplete="new-password"
+            placeholder="At least 6 characters"
+            className="field"
           />
-          {error ? <p className="text-sm text-red-500">{error}</p> : null}
-          {message ? <p className="text-sm text-emerald-600 dark:text-emerald-400">{message}</p> : null}
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full rounded-2xl px-4 py-3 text-sm font-semibold text-white transition disabled:opacity-60"
-            style={{ backgroundColor: "var(--accent)" }}
-          >
-            {isLoading ? "Creating account..." : "Create account"}
-          </button>
-          <p className="text-sm" style={{ color: "var(--muted)" }}>
-            Already have an account?{" "}
-            <Link href="/login" className="font-semibold" style={{ color: "var(--accent)" }}>
-              Sign in
-            </Link>
+        </label>
+        {error ? (
+          <p role="alert" className="text-sm font-bold text-danger">
+            {error}
           </p>
-        </form>
-      </div>
-    </main>
+        ) : null}
+        <button type="submit" disabled={isLoading} className="btn btn-primary w-full">
+          {isLoading ? "Creating your account..." : "Create account"}
+        </button>
+        <p className="pt-2 text-center text-sm text-muted">
+          Already have an account?{" "}
+          <Link href="/login" className="font-extrabold text-primary-ink">
+            Sign in
+          </Link>
+        </p>
+      </form>
+    </AuthShell>
   );
 }

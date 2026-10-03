@@ -1,6 +1,7 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo } from "react";
+import { useMediaQuery, useStored, writeStored } from "@/lib/browserStore";
 
 type ThemeMode = "system" | "light" | "dark";
 
@@ -11,56 +12,28 @@ type ThemeContextValue = {
   toggle: () => void;
 };
 
+const STORAGE_KEY = "bloom_theme_mode";
+
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
-function getSystemTheme() {
-  if (typeof window === "undefined") return "light";
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-}
-
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [mode, setModeState] = useState<ThemeMode>("system");
-  const [resolved, setResolved] = useState<"light" | "dark">("light");
+  const stored = useStored(STORAGE_KEY);
+  const systemDark = useMediaQuery("(prefers-color-scheme: dark)");
+
+  const mode: ThemeMode = stored === "light" || stored === "dark" ? stored : "system";
+  const resolved = mode === "system" ? (systemDark ? "dark" : "light") : mode;
 
   useEffect(() => {
-    const stored = localStorage.getItem("bloom_theme_mode") as ThemeMode | null;
-    if (stored) {
-      setModeState(stored);
-    }
-  }, []);
-
-  useEffect(() => {
-    const system = getSystemTheme();
-    const next = mode === "system" ? system : mode;
-    setResolved(next);
-    document.documentElement.dataset.theme = next;
-    document.documentElement.style.colorScheme = next;
-    if (document.body) {
-      document.body.dataset.theme = next;
-      document.body.style.colorScheme = next;
-    }
-    localStorage.setItem("bloom_theme_mode", mode);
-  }, [mode]);
-
-  useEffect(() => {
-    const media = window.matchMedia("(prefers-color-scheme: dark)");
-    const handler = () => {
-      if (mode === "system") {
-        const system = getSystemTheme();
-        setResolved(system);
-        document.documentElement.dataset.theme = system;
-      }
-    };
-    media.addEventListener("change", handler);
-    return () => media.removeEventListener("change", handler);
-  }, [mode]);
+    document.documentElement.dataset.theme = resolved;
+    document.documentElement.style.colorScheme = resolved;
+  }, [resolved]);
 
   const value = useMemo<ThemeContextValue>(
     () => ({
       mode,
       resolved,
-      setMode: (next) => setModeState(next),
-      toggle: () => setModeState(resolved === "dark" ? "light" : "dark"),
+      setMode: (next) => writeStored(STORAGE_KEY, next),
+      toggle: () => writeStored(STORAGE_KEY, resolved === "dark" ? "light" : "dark"),
     }),
     [mode, resolved]
   );

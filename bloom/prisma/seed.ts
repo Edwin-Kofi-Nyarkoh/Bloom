@@ -1,71 +1,104 @@
 import bcrypt from "bcryptjs";
 import { prisma } from "../lib/prisma";
+import { addDays, toKey } from "../lib/dates";
+
+// The one test account. Seeding only ever touches this user, so real accounts
+// are left alone, and every newly registered account starts completely empty.
+const DEMO_EMAIL = "demo@bloom.app";
+const DEMO_PASSWORD = "Password123!";
 
 async function main() {
-  await prisma.chatLog.deleteMany();
-  await prisma.notification.deleteMany();
-  await prisma.symptom.deleteMany();
-  await prisma.cycle.deleteMany();
-  await prisma.user.deleteMany();
+  const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 10);
 
-  const email = "demo@bloom.app";
-  const password = "Password123!";
-  const passwordHash = await bcrypt.hash(password, 10);
-
-  const demo = await prisma.user.create({
-    data: { email, passwordHash, isAnonymous: false },
+  const demo = await prisma.user.upsert({
+    where: { email: DEMO_EMAIL },
+    update: { passwordHash, isAnonymous: false },
+    create: { email: DEMO_EMAIL, passwordHash, isAnonymous: false },
   });
+
+  await prisma.chatLog.deleteMany({ where: { userId: demo.id } });
+  await prisma.notification.deleteMany({ where: { userId: demo.id } });
+  await prisma.symptom.deleteMany({ where: { userId: demo.id } });
+  await prisma.cycle.deleteMany({ where: { userId: demo.id } });
+
+  // Dates are relative to today so the demo always looks current:
+  // the latest period started 9 days ago, with five full cycles before it.
+  const today = toKey(new Date());
+  const cycleLengths = [28, 27, 29, 28, 27];
+  const periodLengths = [5, 5, 4, 5, 5, 5];
+  const starts = [addDays(today, -9)];
+  [...cycleLengths].reverse().forEach((length) => starts.unshift(addDays(starts[0], -length)));
 
   await prisma.cycle.createMany({
-    data: [
-      { userId: demo.id, startDate: new Date("2025-12-06"), endDate: new Date("2025-12-10") },
-      { userId: demo.id, startDate: new Date("2026-01-03"), endDate: new Date("2026-01-07") },
-      { userId: demo.id, startDate: new Date("2026-01-30"), endDate: new Date("2026-02-03") },
-      { userId: demo.id, startDate: new Date("2026-02-26"), endDate: new Date("2026-03-02") },
-      { userId: demo.id, startDate: new Date("2026-03-25"), endDate: new Date("2026-03-29") },
-    ],
+    data: starts.map((start, index) => ({
+      userId: demo.id,
+      startDate: new Date(start),
+      endDate: new Date(addDays(start, periodLengths[index] - 1)),
+    })),
   });
 
+  // [cycle index, day of cycle, mood, cramps, sleep, energy, notes]
+  const entries: Array<[number, number, string, number, number, number, string?]> = [
+    [3, 1, "Crampy", 4, 3, 2, "Rough first day, stayed in with a hot water bottle."],
+    [3, 3, "Tired", 3, 3, 2],
+    [3, 9, "Energetic", 1, 4, 5, "Great run this morning."],
+    [3, 14, "Happy", 1, 4, 4],
+    [3, 21, "Calm", 1, 4, 3],
+    [3, 26, "Moody", 2, 2, 2, "Snapped at everyone today."],
+    [4, 1, "Crampy", 4, 2, 2],
+    [4, 2, "Tired", 3, 3, 2, "Low energy, early night."],
+    [4, 8, "Happy", 1, 5, 4],
+    [4, 13, "Loved", 1, 4, 5],
+    [4, 20, "Calm", 1, 4, 3],
+    [4, 25, "Cravings", 2, 3, 3, "All the chocolate."],
+    [4, 26, "Sensitive", 2, 2, 2],
+    [5, 1, "Crampy", 3, 3, 2],
+    [5, 2, "Tired", 3, 3, 3],
+    [5, 5, "Calm", 1, 4, 3],
+    [5, 8, "Energetic", 1, 4, 5],
+  ];
+
   await prisma.symptom.createMany({
-    data: [
-      { userId: demo.id, date: new Date("2025-12-07"), mood: "calm", cramps: 2, sleep: 4, energy: 3, notes: "Light cramps, good sleep." },
-      { userId: demo.id, date: new Date("2025-12-09"), mood: "tired", cramps: 3, sleep: 3, energy: 2, notes: "Low energy day." },
-      { userId: demo.id, date: new Date("2026-01-04"), mood: "happy", cramps: 1, sleep: 5, energy: 5 },
-      { userId: demo.id, date: new Date("2026-01-31"), mood: "moody", cramps: 4, sleep: 2, energy: 2, notes: "Heavier symptoms." },
-      { userId: demo.id, date: new Date("2026-02-02"), mood: "relieved", cramps: 1, sleep: 4, energy: 4 },
-      { userId: demo.id, date: new Date("2026-02-27"), mood: "anxious", cramps: 3, sleep: 3, energy: 2 },
-      { userId: demo.id, date: new Date("2026-03-01"), mood: "content", cramps: 2, sleep: 4, energy: 3 },
-      { userId: demo.id, date: new Date("2026-03-26"), mood: "tender", cramps: 3, sleep: 3, energy: 3 },
-    ],
+    data: entries.map(([cycle, day, mood, cramps, sleep, energy, notes]) => ({
+      userId: demo.id,
+      date: new Date(addDays(starts[cycle], day - 1)),
+      mood,
+      cramps,
+      sleep,
+      energy,
+      notes,
+    })),
   });
 
   await prisma.notification.createMany({
     data: [
-      { userId: demo.id, type: "PERIOD_START", scheduledFor: new Date("2026-03-25T08:00:00Z"), delivered: false },
-      { userId: demo.id, type: "FERTILITY_WINDOW", scheduledFor: new Date("2026-03-11T08:00:00Z"), delivered: true },
-      { userId: demo.id, type: "SYMPTOM_REMINDER", scheduledFor: new Date("2026-03-18T20:00:00Z"), delivered: false },
+      { userId: demo.id, type: "PERIOD_START", scheduledFor: new Date(`${addDays(starts[5], 27)}T08:00:00Z`) },
+      { userId: demo.id, type: "FERTILITY_WINDOW", scheduledFor: new Date(`${addDays(starts[5], 8)}T08:00:00Z`) },
     ],
   });
 
+  const now = Date.now();
   await prisma.chatLog.createMany({
     data: [
-      { userId: demo.id, role: "USER", message: "I feel cramps today. Any tips?" },
-      { userId: demo.id, role: "ASSISTANT", message: "Try a warm compress, gentle stretching, and hydration." },
-      { userId: demo.id, role: "USER", message: "Thanks! Also feeling tired." },
-      { userId: demo.id, role: "ASSISTANT", message: "Rest if you can and consider light iron-rich foods." },
+      { userId: demo.id, role: "USER", message: "What helps with cramps?", createdAt: new Date(now - 60_000) },
+      {
+        userId: demo.id,
+        role: "ASSISTANT",
+        message:
+          "Sorry you're in pain. 💗 Heat on your lower tummy, gentle stretching, and ibuprofen (following the pack) usually help the most. If the pain ever stops you doing normal things, it's worth seeing a doctor.",
+        createdAt: new Date(now - 59_000),
+      },
     ],
   });
 
-  // eslint-disable-next-line no-console
-  console.log(`Seeded demo user ${email} with password ${password}`);
+  console.log(`Seeded demo account ${DEMO_EMAIL} (password ${DEMO_PASSWORD}). No other accounts were changed.`);
 }
 
 main()
   .catch((err) => {
-    // eslint-disable-next-line no-console
     console.error(err);
+    process.exitCode = 1;
   })
   .finally(async () => {
     await prisma.$disconnect();
   });
-

@@ -1,407 +1,317 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
-import Card from "@/components/ui/Card";
-import api from "@/lib/api";
-import { useAuthToken } from "@/lib/useAuthToken";
-import { BLOOM_STICKERS, StickerItem } from "@/lib/stickers";
-import StickerBadge from "@/components/ui/StickerBadge";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { predictCycle, PredictionResult } from "@/lib/predictor";
-import CycleTimelineChart from "@/components/dashboard/CycleTimelineChart";
-import FertilityPieChart from "@/components/dashboard/FertilityPieChart";
+import { useState } from "react";
+import Card from "@/components/ui/Card";
+import Sticker from "@/components/ui/Sticker";
+import StickerBadge from "@/components/ui/StickerBadge";
+import BloomFlower from "@/components/ui/BloomFlower";
+import { useToast } from "@/components/ui/Toast";
+import CycleRing, { PHASE_COLORS } from "@/components/charts/CycleRing";
 import PwaInstallBanner from "@/components/pwa/PwaInstallBanner";
+import api, { apiErrorMessage } from "@/lib/api";
+import { formatKey, formatRange, toKey } from "@/lib/dates";
+import { CHANCE_LABEL, PHASE_INFO, Prediction } from "@/lib/predictor";
+import { BLOOM_STICKERS, StickerItem } from "@/lib/stickers";
+import { authHeader, useBloomData } from "@/lib/useBloomData";
 
-type Cycle = { id: string; startDate: string; endDate?: string };
-type Symptom = { id: string; date: string; mood?: string; cramps?: number; sleep?: number; energy?: number; notes?: string };
+const CHANCE_STYLE = {
+  low: "bg-mint-soft text-ink",
+  medium: "bg-sun-soft text-ink",
+  high: "bg-primary-soft text-ink",
+  peak: "bg-primary-soft text-ink",
+} as const;
+
+function headline(prediction: Prediction) {
+  if (prediction.stale) return "Time for a fresh start";
+  if (prediction.onPeriod) return `Day ${prediction.cycleDay} of your period`;
+  if (prediction.daysLate > 0) {
+    return `Period is ${prediction.daysLate} ${prediction.daysLate === 1 ? "day" : "days"} late`;
+  }
+  if (prediction.daysUntilNextPeriod === 0) return "Period expected today";
+  return `Period in ${prediction.daysUntilNextPeriod} ${prediction.daysUntilNextPeriod === 1 ? "day" : "days"}`;
+}
 
 export default function DashboardPage() {
-  const token = useAuthToken();
+  const { token, today, cycles, symptoms, prediction, loading } = useBloomData();
   const queryClient = useQueryClient();
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [selectedSticker, setSelectedSticker] = useState<string | null>(null);
-  const [isMounted, setIsMounted] = useState(false);
+  const { toast, showToast } = useToast();
+  const [firstPeriod, setFirstPeriod] = useState("");
+  const [logOpen, setLogOpen] = useState(false);
+  const [logDate, setLogDate] = useState("");
 
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
+  const openCycle = cycles.find((cycle) => !cycle.endDate && toKey(cycle.startDate) === prediction?.lastPeriodStart);
+  const todayMood = symptoms.find((symptom) => toKey(symptom.date) === today)?.mood;
 
-  const showToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3500);
-  };
-
-  const cyclesQuery = useQuery({
-    queryKey: ["cycles", token],
-    queryFn: async () => {
-      const response = await api.get("/cycles", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      return (response.data.cycles || []) as Cycle[];
+  const startPeriod = useMutation({
+    mutationFn: async (startDate: string) => {
+      await api.post("/cycles", { startDate }, authHeader(token));
     },
-    enabled: !!token,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["cycles"] });
+      setLogOpen(false);
+      showToast("Period saved 🌸");
+    },
+    onError: (error) => showToast(apiErrorMessage(error, "Couldn't save that. Please try again.")),
   });
 
-  const symptomsQuery = useQuery({
-    queryKey: ["symptoms", token],
-    queryFn: async () => {
-      const response = await api.get("/symptoms", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      return (response.data.symptoms || []) as Symptom[];
-    },
-    enabled: !!token,
-  });
-
-  const rawCycles = cyclesQuery.data || [];
-  const rawSymptoms = symptomsQuery.data || [];
-
-  // Compute prediction dynamically
-  const prediction: PredictionResult = predictCycle(rawCycles as any);
-
-  const todayIso = new Date().toISOString().slice(0, 10);
-
-  // Quick Period Log Mutation
-  const quickLogPeriod = useMutation({
+  const endPeriod = useMutation({
     mutationFn: async () => {
-      await api.post(
-        "/cycles",
-        { startDate: todayIso },
-        { headers: { Authorization: `Bearer ${token}` } }
+      if (!openCycle) return;
+      await api.put(
+        `/cycles/${openCycle.id}`,
+        { startDate: toKey(openCycle.startDate), endDate: today },
+        authHeader(token)
       );
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cycles"] });
-      showToast("🌸 Period start logged for today!");
+      showToast("Period end saved 💗");
     },
-    onError: (err: any) => {
-      showToast(err?.response?.data?.error || "Could not log period start.");
-    },
+    onError: (error) => showToast(apiErrorMessage(error, "Couldn't save that. Please try again.")),
   });
 
-  // 1-Tap Daily Sticker Check-in Mutation
-  const logStickerMutation = useMutation({
+  const logMood = useMutation({
     mutationFn: async (sticker: StickerItem) => {
-      await api.post(
-        "/symptoms",
-        {
-          date: todayIso,
-          mood: sticker.label,
-          notes: `Logged sticker: ${sticker.emoji} ${sticker.label} - ${sticker.description}`,
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await api.post("/symptoms", { date: today, mood: sticker.label }, authHeader(token));
     },
     onSuccess: (_, sticker) => {
-      setSelectedSticker(sticker.id);
       queryClient.invalidateQueries({ queryKey: ["symptoms"] });
-      showToast(`✨ Logged ${sticker.emoji} ${sticker.label} for today!`);
+      showToast(`Feeling ${sticker.label.toLowerCase()} ${sticker.emoji} saved`);
     },
-    onError: () => {
-      showToast("Unable to save sticker log. Please check your connection.");
-    },
+    onError: () => showToast("Couldn't save your mood. Check your connection."),
   });
 
-  const dateOpts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" };
-  const nextPeriodDateStr = prediction.nextPeriodStart.toLocaleDateString("en-US", dateOpts);
-  const ovulationDateStr = prediction.ovulationDate.toLocaleDateString("en-US", dateOpts);
+  if (loading) {
+    return (
+      <div className="space-y-5" aria-busy="true">
+        <div className="h-96 animate-pulse rounded-3xl bg-surface" />
+        <div className="h-36 animate-pulse rounded-3xl bg-surface" />
+      </div>
+    );
+  }
+
+  const moodCard = (
+    <Card title="How do you feel today?" subtitle="Tap a sticker to save it">
+      <div className="-mx-2 flex gap-1 overflow-x-auto px-2 pb-1">
+        {BLOOM_STICKERS.map((sticker) => (
+          <StickerBadge
+            key={sticker.id}
+            sticker={sticker}
+            selected={todayMood === sticker.label}
+            disabled={logMood.isPending}
+            onClick={() => logMood.mutate(sticker)}
+          />
+        ))}
+      </div>
+    </Card>
+  );
+
+  // A brand-new account: nothing is assumed until she logs her first period.
+  if (!prediction) {
+    return (
+      <>
+        {toast}
+        <section className="relative overflow-hidden rounded-3xl border border-line bg-surface p-6 text-center shadow-soft">
+          <Sticker emoji="🌷" size={52} tilt={-12} float className="absolute left-4 top-4" />
+          <Sticker emoji="💗" size={44} tilt={10} float className="absolute right-5 top-6" />
+          <div className="mx-auto mt-6 w-fit">
+            <BloomFlower size={88} />
+          </div>
+          <h1 className="mt-3 font-display text-3xl font-semibold text-ink">Welcome to Bloom</h1>
+          <p className="mx-auto mt-2 max-w-xs text-muted">
+            Tell me when your last period started and I&apos;ll predict your next one.
+          </p>
+
+          <form
+            className="mx-auto mt-6 max-w-xs space-y-3 text-left"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (firstPeriod) startPeriod.mutate(firstPeriod);
+            }}
+          >
+            <label className="block text-sm font-bold text-ink" htmlFor="first-period">
+              My last period started on
+            </label>
+            <input
+              id="first-period"
+              type="date"
+              required
+              max={today ?? undefined}
+              value={firstPeriod}
+              onChange={(event) => setFirstPeriod(event.target.value)}
+              className="field"
+            />
+            <button type="submit" disabled={!firstPeriod || startPeriod.isPending} className="btn btn-primary w-full">
+              {startPeriod.isPending ? "Saving..." : "Start tracking"}
+            </button>
+          </form>
+          <p className="mt-4 text-xs text-muted">Not sure? Your best guess is fine. You can change it later.</p>
+        </section>
+        {moodCard}
+      </>
+    );
+  }
+
+  const phase = PHASE_INFO[prediction.phase];
+  const fertile = prediction.upcomingFertile;
+  // On the ring, ovulation day is part of the fertile window and PMS days are part of the luteal phase.
+  const ringPhase = prediction.phase === "ovulation" ? "fertile" : prediction.phase === "pms" ? "luteal" : prediction.phase;
+  const guide = [
+    { phase: "period", info: PHASE_INFO.period },
+    { phase: "follicular", info: PHASE_INFO.follicular },
+    { phase: "fertile", info: PHASE_INFO.fertile },
+    { phase: "luteal", info: PHASE_INFO.luteal },
+  ] as const;
 
   return (
-    <div className="relative space-y-6 md:space-y-8 pb-12">
-      {/* Decorative blurred background orbs */}
-      <div className="pointer-events-none absolute -top-10 right-4 hidden h-64 w-64 rounded-full bg-[#ffb8cb] opacity-40 blur-3xl lg:block" />
-      <div className="pointer-events-none absolute top-72 left-4 hidden h-48 w-48 rounded-full bg-[#eee4ff] opacity-50 blur-3xl lg:block" />
+    <>
+      {toast}
 
-      {/* Floating Toast Notification */}
-      {toastMessage ? (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-2xl bg-[#ff5277] px-5 py-3.5 text-sm font-bold text-white shadow-xl shadow-pink-500/25 animate-pop">
-          <span>{toastMessage}</span>
+      <section className="relative overflow-hidden rounded-3xl border border-line bg-surface p-5 shadow-soft">
+        <Sticker emoji={phase.emoji} size={46} tilt={-10} float className="absolute left-4 top-4" />
+        <Sticker emoji="🌸" size={38} tilt={12} float className="absolute right-4 top-5" />
+
+        <div className="pt-2">
+          <CycleRing prediction={prediction} />
+        </div>
+
+        <div className="mt-5 text-center">
+          <h1 className="font-display text-2xl font-semibold text-ink">{headline(prediction)}</h1>
+          <p className="mt-1 text-sm text-muted">
+            {prediction.stale
+              ? `The last period you added was ${formatKey(prediction.lastPeriodStart)}. Add your latest one to refresh your predictions.`
+              : prediction.daysLate > 0
+              ? `It was expected around ${formatKey(prediction.nextPeriodStart)}. A few days' delay is common.`
+              : `Next period around ${formatKey(prediction.nextPeriodStart)} (${formatRange(
+                  prediction.nextPeriodEarliest,
+                  prediction.nextPeriodLatest
+                )})`}
+          </p>
+          {!prediction.stale ? (
+            <span className={`mt-3 inline-flex rounded-full px-3.5 py-1.5 text-sm font-extrabold ${CHANCE_STYLE[prediction.chance]}`}>
+              {phase.label} · {CHANCE_LABEL[prediction.chance]}
+            </span>
+          ) : null}
+        </div>
+
+        <div className="mt-5 space-y-2.5">
+          {logOpen ? (
+            <form
+              className="space-y-2.5 rounded-2xl bg-bg p-3.5"
+              onSubmit={(event) => {
+                event.preventDefault();
+                if (logDate) startPeriod.mutate(logDate);
+              }}
+            >
+              <label className="block text-sm font-bold text-ink" htmlFor="log-period-date">
+                When did your period start?
+              </label>
+              <input
+                id="log-period-date"
+                type="date"
+                required
+                max={today ?? undefined}
+                value={logDate}
+                onChange={(event) => setLogDate(event.target.value)}
+                className="field"
+              />
+              <div className="grid grid-cols-2 gap-2.5">
+                <button type="button" onClick={() => setLogOpen(false)} className="btn btn-ghost">
+                  Cancel
+                </button>
+                <button type="submit" disabled={!logDate || startPeriod.isPending} className="btn btn-primary">
+                  {startPeriod.isPending ? "Saving..." : "Save"}
+                </button>
+              </div>
+            </form>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                setLogDate(today ?? "");
+                setLogOpen(true);
+              }}
+              className="btn btn-primary w-full"
+            >
+              🩸 Add my period
+            </button>
+          )}
+          {openCycle && prediction.onPeriod ? (
+            <button type="button" onClick={() => endPeriod.mutate()} disabled={endPeriod.isPending} className="btn btn-soft w-full">
+              {endPeriod.isPending ? "Saving..." : "My period ended today"}
+            </button>
+          ) : null}
+        </div>
+      </section>
+
+      {!prediction.stale ? (
+        <div className="grid grid-cols-3 gap-3">
+          {[
+            { label: "Next period", value: prediction.daysLate > 0 ? "Late" : formatKey(prediction.nextPeriodStart), tint: "bg-primary-soft" },
+            { label: "Fertile days", value: fertile ? formatRange(fertile.start, fertile.end) : "—", tint: "bg-mint-soft" },
+            { label: "Ovulation", value: fertile ? formatKey(fertile.ovulation) : "—", tint: "bg-sun-soft" },
+          ].map((tile) => (
+            <div key={tile.label} className={`rounded-2xl p-3 text-center ${tile.tint}`}>
+              <p className="text-[11px] font-bold uppercase tracking-wide text-muted">{tile.label}</p>
+              <p className="mt-1 text-sm font-extrabold leading-tight text-ink">{tile.value}</p>
+            </div>
+          ))}
         </div>
       ) : null}
 
-      {/* PWA Home Screen Installation Banner */}
-      <PwaInstallBanner />
+      {moodCard}
 
-      {/* Hero Cycle Ring & Live Status Card */}
-      <div
-        className="relative overflow-hidden rounded-3xl border p-5 md:p-8 shadow-xl transition-all glass-card"
-        style={{
-          backgroundColor: "var(--card)",
-          borderColor: "var(--border)",
-        }}
-      >
-        <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-          <div className="space-y-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <span
-                className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-extrabold uppercase tracking-wider"
-                style={{ backgroundColor: "color-mix(in srgb, var(--accent) 15%, transparent)", color: "var(--accent)" }}
-              >
-                🌸 {prediction.currentPhaseLabel}
-              </span>
-              <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ${prediction.conceptionBadgeClass}`}>
-                {prediction.conceptionRiskLabel}
-              </span>
-            </div>
-
-            <h1 className="font-display text-2xl md:text-4xl font-black tracking-tight" style={{ color: "var(--foreground)" }}>
-              Day {prediction.currentCycleDay} of Cycle
-            </h1>
-
-            <p className="text-sm md:text-base leading-relaxed" style={{ color: "var(--muted)" }}>
-              Next period expected in{" "}
-              <strong className="font-extrabold text-[#ff5277]">
-                {prediction.daysUntilNextPeriod} {prediction.daysUntilNextPeriod === 1 ? "day" : "days"}
-              </strong>{" "}
-              ({nextPeriodDateStr})
-            </p>
-          </div>
-
-          {/* Visual Cycle Progress Gauge */}
-          <div className="flex items-center gap-4 rounded-2xl p-4 md:p-5 border self-start md:self-auto" style={{ borderColor: "var(--border)", backgroundColor: "color-mix(in srgb, var(--accent) 8%, var(--card))" }}>
-            <div className="relative flex h-16 w-16 md:h-20 md:w-20 items-center justify-center rounded-full border-4 border-[#ff6584] shadow-inner shrink-0">
-              <span className="font-display text-xl md:text-2xl font-black text-[#ff5277]">
-                {prediction.currentCycleDay}
-              </span>
-              <span className="absolute -bottom-2 text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded-full bg-white dark:bg-[#1a0f1e] text-[#ff5277] shadow-xs">
-                Day
-              </span>
-            </div>
-            <div className="text-xs space-y-1" style={{ color: "var(--muted)" }}>
-              <p className="font-bold text-xs md:text-sm" style={{ color: "var(--foreground)" }}>
-                {prediction.averageCycleLength}-day cycle
-              </p>
-              <p>🌸 Peak: {ovulationDateStr}</p>
-              <p>🩸 Next: {nextPeriodDateStr}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Interactive 28-Day Cycle Timeline & Live Day Inspector */}
-      <CycleTimelineChart prediction={prediction} />
-
-      {/* Fertility vs Safe Sex Donut / Pie Chart */}
-      <FertilityPieChart prediction={prediction} />
-
-      {/* 3 Core Forecasting Cards: Next Period, Fertile Window, Safe Sex Window */}
-      <div className="grid gap-4 md:gap-6 sm:grid-cols-2 md:grid-cols-3">
-        {/* Card 1: Next Period */}
-        <Card
-          title={
-            <span className="flex items-center gap-2">
-              <span className="text-lg md:text-xl">🩸</span> Next Period
-            </span>
-          }
-          badge={
-            <span className="rounded-full bg-rose-100 dark:bg-rose-950/60 px-2.5 py-0.5 text-xs font-bold text-rose-600 dark:text-rose-400">
-              in {prediction.daysUntilNextPeriod}d
-            </span>
-          }
-        >
-          <div className="space-y-3 text-xs md:text-sm">
-            <div className="flex items-baseline justify-between border-b pb-2" style={{ borderColor: "var(--border)" }}>
-              <span style={{ color: "var(--muted)" }}>Expected Start</span>
-              <span className="font-bold" style={{ color: "var(--foreground)" }}>{nextPeriodDateStr}</span>
-            </div>
-            <div className="flex items-baseline justify-between border-b pb-2" style={{ borderColor: "var(--border)" }}>
-              <span style={{ color: "var(--muted)" }}>Avg Cycle Length</span>
-              <span className="font-bold" style={{ color: "var(--foreground)" }}>{prediction.averageCycleLength} days</span>
-            </div>
-            <div className="flex items-baseline justify-between">
-              <span style={{ color: "var(--muted)" }}>Period Duration</span>
-              <span className="font-bold" style={{ color: "var(--foreground)" }}>~5 days</span>
-            </div>
-          </div>
+      {!prediction.stale ? (
+        <Card title={`Today: ${phase.label.toLowerCase()}`}>
+          <p className="text-[15px] text-ink">
+            {phase.meaning} {phase.feel}
+          </p>
+          <p className="mt-3 rounded-2xl bg-bg p-3.5 text-sm text-ink">
+            <span className="font-extrabold text-primary-ink">Tip: </span>
+            {phase.tip}
+          </p>
+          <Link href="/chat" className="btn btn-ghost mt-4 w-full">
+            💬 Ask Bloom AI anything
+          </Link>
         </Card>
+      ) : null}
 
-        {/* Card 2: Fertile Window & Ovulation */}
-        <Card
-          title={
-            <span className="flex items-center gap-2">
-              <span className="text-lg md:text-xl">🌺</span> Fertile & Ovulation
+      <Card title="What these words mean" subtitle="The four parts of your cycle">
+        <ul className="space-y-3">
+          {guide.map(({ phase: key, info }) => (
+            <li key={key} className={`flex gap-3 rounded-2xl p-3 ${key === ringPhase && !prediction.stale ? "bg-bg" : ""}`}>
+              <span className="mt-1.5 h-3 w-3 shrink-0 rounded-full" style={{ background: PHASE_COLORS[key] }} />
+              <div>
+                <p className="font-extrabold text-ink">
+                  {info.emoji} {info.label}
+                  {key === ringPhase && !prediction.stale ? (
+                    <span className="ml-2 rounded-full bg-primary-soft px-2 py-0.5 text-xs text-primary-ink">You are here</span>
+                  ) : null}
+                </p>
+                <p className="text-sm text-muted">{info.meaning}</p>
+              </div>
+            </li>
+          ))}
+          <li className="flex gap-3 rounded-2xl p-3">
+            <span className="mt-1 flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full" style={{ background: PHASE_COLORS.fertile }}>
+              <span className="h-1.5 w-1.5 rounded-full bg-surface" />
             </span>
-          }
-          badge={
-            <span className="rounded-full bg-pink-100 dark:bg-pink-950/60 px-2.5 py-0.5 text-xs font-bold text-pink-600 dark:text-pink-400">
-              High Chance
-            </span>
-          }
-        >
-          <div className="space-y-3 text-xs md:text-sm">
-            <div className="flex items-baseline justify-between border-b pb-2" style={{ borderColor: "var(--border)" }}>
-              <span style={{ color: "var(--muted)" }}>Fertile Window</span>
-              <span className="font-bold text-pink-600 dark:text-pink-400">
-                {prediction.safeSexSummary.fertileWindowDates}
-              </span>
+            <div>
+              <p className="font-extrabold text-ink">{PHASE_INFO.ovulation.emoji} Ovulation</p>
+              <p className="text-sm text-muted">{PHASE_INFO.ovulation.meaning} It is the white dot on the ring.</p>
             </div>
-            <div className="flex items-baseline justify-between border-b pb-2" style={{ borderColor: "var(--border)" }}>
-              <span style={{ color: "var(--muted)" }}>Ovulation Peak</span>
-              <span className="font-bold text-amber-600 dark:text-amber-400">
-                {ovulationDateStr} (Day {Math.max(10, prediction.averageCycleLength - 14)})
-              </span>
-            </div>
-            <p className="text-[11px] pt-1 leading-normal" style={{ color: "var(--muted)" }}>
-              Sperm can survive 3–5 days in fertile fluid before egg release.
-            </p>
-          </div>
-        </Card>
-
-        {/* Card 3: Safe Sex / Sex Free Window */}
-        <Card
-          title={
-            <span className="flex items-center gap-2">
-              <span className="text-lg md:text-xl">🛡️</span> Safe Days & Free Sex
-            </span>
-          }
-          badge={
-            <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${prediction.conceptionBadgeClass}`}>
-              {prediction.safeSexSummary.isTodaySafe ? "🟢 Safe Days" : "🔴 Fertile"}
-            </span>
-          }
-        >
-          <div className="space-y-3 text-xs md:text-sm">
-            <p className="font-bold text-xs" style={{ color: "var(--foreground)" }}>
-              {prediction.safeSexSummary.headline}
-            </p>
-            <p className="text-[11px] leading-relaxed" style={{ color: "var(--muted)" }}>
-              {prediction.safeSexSummary.description}
-            </p>
-            <div className="rounded-xl p-2.5 text-xs font-semibold" style={{ backgroundColor: "color-mix(in srgb, var(--accent) 8%, var(--card))" }}>
-              <span className="font-bold text-[#ff5277]">Safe Window: </span>
-              <span style={{ color: "var(--foreground)" }}>{prediction.safeSexSummary.safeWindowDates}</span>
-            </div>
-          </div>
-        </Card>
-      </div>
-
-      {/* 1-Tap Daily Mood & Feeling Check-in */}
-      <Card
-        title={
-          <span className="flex items-center gap-2">
-            <span className="text-lg">💖</span> How Are You Feeling Today?
-          </span>
-        }
-        subtitle="Tap to quickly log your daily mood and energy"
-      >
-        <div className="flex flex-wrap gap-2.5 pt-2">
-          {BLOOM_STICKERS.map((sticker) => {
-            const isSelected = selectedSticker === sticker.id;
-            return (
-              <StickerBadge
-                key={sticker.id}
-                sticker={sticker}
-                size="sm"
-                selected={isSelected}
-                onClick={() => logStickerMutation.mutate(sticker)}
-              />
-            );
-          })}
-        </div>
+          </li>
+        </ul>
       </Card>
 
-      {/* Daily Hormone & Body Intelligence */}
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card
-          title={
-            <span className="flex items-center gap-2">
-              <span className="text-lg md:text-xl">{prediction.phaseIntelligence.stickerEmoji}</span>
-              {prediction.phaseIntelligence.title}
-            </span>
-          }
-          subtitle="What your body and hormones are experiencing today"
-        >
-          <div className="grid grid-cols-2 gap-2.5 text-xs md:text-sm pt-2">
-            <div className="rounded-2xl p-3 border" style={{ borderColor: "var(--border)", backgroundColor: "color-mix(in srgb, var(--accent) 6%, var(--card))" }}>
-              <p className="text-[10px] uppercase tracking-wider font-bold text-[#ff5277]">Estrogen</p>
-              <p className="mt-0.5 font-bold" style={{ color: "var(--foreground)" }}>{prediction.phaseIntelligence.estrogen}</p>
-            </div>
-            <div className="rounded-2xl p-3 border" style={{ borderColor: "var(--border)", backgroundColor: "color-mix(in srgb, var(--lavender-deep) 6%, var(--card))" }}>
-              <p className="text-[10px] uppercase tracking-wider font-bold text-purple-600 dark:text-purple-400">Progesterone</p>
-              <p className="mt-0.5 font-bold" style={{ color: "var(--foreground)" }}>{prediction.phaseIntelligence.progesterone}</p>
-            </div>
-            <div className="rounded-2xl p-3 border" style={{ borderColor: "var(--border)", backgroundColor: "color-mix(in srgb, var(--mint-deep) 6%, var(--card))" }}>
-              <p className="text-[10px] uppercase tracking-wider font-bold text-emerald-600 dark:text-emerald-400">Energy Vibe</p>
-              <p className="mt-0.5 font-bold" style={{ color: "var(--foreground)" }}>{prediction.phaseIntelligence.energy}</p>
-            </div>
-            <div className="rounded-2xl p-3 border" style={{ borderColor: "var(--border)", backgroundColor: "color-mix(in srgb, var(--gold-deep) 6%, var(--card))" }}>
-              <p className="text-[10px] uppercase tracking-wider font-bold text-amber-600 dark:text-amber-400">Mood Tone</p>
-              <p className="mt-0.5 font-bold" style={{ color: "var(--foreground)" }}>{prediction.phaseIntelligence.mood}</p>
-            </div>
-          </div>
-          <div className="mt-3.5 rounded-2xl border p-3 text-xs leading-relaxed" style={{ borderColor: "var(--border)", backgroundColor: "color-mix(in srgb, var(--accent) 5%, var(--card))" }}>
-            <span className="font-bold text-[#ff5277]">🥑 Nourish Tip: </span>
-            <span style={{ color: "var(--foreground)" }}>{prediction.phaseIntelligence.nutritionTip}</span>
-          </div>
-        </Card>
+      <PwaInstallBanner />
 
-        {/* Quick Actions & AI Assistant Starters */}
-        <Card
-          title={
-            <span className="flex items-center gap-2">
-              <span className="text-lg md:text-xl">✨</span> Quick Actions & Bloom Guide
-            </span>
-          }
-          subtitle="Manage your cycle or ask questions"
-        >
-          <div className="flex flex-col gap-3 pt-2">
-            <button
-              onClick={() => quickLogPeriod.mutate()}
-              disabled={quickLogPeriod.isPending}
-              className="flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold text-white transition-all shadow-md active:scale-98 disabled:opacity-60 cursor-pointer"
-              style={{ backgroundColor: "var(--accent)" }}
-            >
-              <span>🩸</span>
-              <span>{quickLogPeriod.isPending ? "Logging..." : "Period Started Today (Quick Log)"}</span>
-            </button>
-
-            <div className="grid grid-cols-2 gap-2">
-              <Link
-                href="/calendar"
-                className="flex items-center justify-center gap-1.5 rounded-2xl border px-3 py-2.5 text-xs font-bold transition hover:scale-102 text-center"
-                style={{ borderColor: "var(--border)", color: "var(--foreground)", backgroundColor: "var(--card)" }}
-              >
-                <span>📅</span> Calendar View
-              </Link>
-              <Link
-                href="/symptoms"
-                className="flex items-center justify-center gap-1.5 rounded-2xl border px-3 py-2.5 text-xs font-bold transition hover:scale-102 text-center"
-                style={{ borderColor: "var(--border)", color: "var(--foreground)", backgroundColor: "var(--card)" }}
-              >
-                <span>📝</span> Detailed Journal
-              </Link>
-            </div>
-
-            <div className="mt-2 space-y-2 border-t pt-3 text-xs" style={{ borderColor: "var(--border)" }}>
-              <p className="font-bold text-xs" style={{ color: "var(--muted)" }}>Ask Bloom AI Guide:</p>
-              <div className="flex flex-wrap gap-1.5">
-                <Link
-                  href="/chat"
-                  className="rounded-xl px-2.5 py-1 text-[11px] font-semibold transition hover:scale-102"
-                  style={{ backgroundColor: "color-mix(in srgb, var(--accent) 12%, var(--card))", color: "var(--foreground)" }}
-                >
-                  💬 When is my next free period?
-                </Link>
-                <Link
-                  href="/chat"
-                  className="rounded-xl px-2.5 py-1 text-[11px] font-semibold transition hover:scale-102"
-                  style={{ backgroundColor: "color-mix(in srgb, var(--accent) 12%, var(--card))", color: "var(--foreground)" }}
-                >
-                  🍵 Foods for my phase
-                </Link>
-                <Link
-                  href="/chat"
-                  className="rounded-xl px-2.5 py-1 text-[11px] font-semibold transition hover:scale-102"
-                  style={{ backgroundColor: "color-mix(in srgb, var(--accent) 12%, var(--card))", color: "var(--foreground)" }}
-                >
-                  🧸 Cramp relief ideas
-                </Link>
-              </div>
-            </div>
-          </div>
-        </Card>
-      </div>
-    </div>
+      <p className="px-2 text-center text-xs text-muted">
+        Predictions are estimates based on the dates you add. They are not medical advice or birth control.
+        {prediction.confidence === "low" ? " They get more accurate after you add two or three periods." : ""}
+      </p>
+    </>
   );
 }

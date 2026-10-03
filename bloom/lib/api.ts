@@ -12,5 +12,17 @@ const api = axios.create({
   baseURL,
 });
 
-export default api;
+/** The message the server sent with a failed request, or `fallback` if there wasn't one. */
+export function apiErrorMessage(error: unknown, fallback: string) {
+  if (axios.isAxiosError(error)) {
+    const message = (error.response?.data as { error?: unknown } | undefined)?.error;
+    if (typeof message === "string") return message;
+  }
+  return fallback;
+}
 
+export function apiErrorStatus(error: unknown) {
+  return axios.isAxiosError(error) ? error.response?.status : undefined;
+}
+
+export default api;

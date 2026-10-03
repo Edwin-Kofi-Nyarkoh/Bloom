@@ -1,361 +1,235 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 :root {
-  --font-body: 'Nunito', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-display: 'Playfair Display', Georgia, Cambria, 'Times New Roman', serif;
-  --background: #fff5f8;
-  --foreground: #2d1326;
-  --rose: #ff6584;
-  --rose-soft: #ffe4ec;
-  --peach: #ffd9cb;
-  --plum: #4a153b;
-  --lavender: #eee4ff;
-  --lavender-deep: #7c4dff;
-  --mint: #daf5ea;
-  --mint-deep: #10b981;
-  --gold: #fef08a;
-  --gold-deep: #d97706;
-  --card: rgba(255, 255, 255, 0.92);
-  --card-glass: rgba(255, 255, 255, 0.82);
-  --border: #f5d3e0;
-  --accent: #ff5277;
-  --accent-hover: #e63960;
-  --muted: #735167;
-  --shadow-color: rgba(255, 101, 132, 0.12);
+  --bg: #fff8f4;
+  --surface: #ffffff;
+  --ink: #2b1a3f;
+  --muted: #75657f;
+  --line: #f1e3ea;
+  --primary: #db3d74;
+  --primary-ink: #c02a60;
+  --primary-soft: #ffe3ec;
+  --on-primary: #ffffff;
+  --lilac: #8a63f2;
+  --lilac-soft: #efe9ff;
+  --mint: #17a589;
+  --mint-soft: #ddf5ea;
+  --sun: #e8912d;
+  --sun-soft: #fff0d2;
+  --peach-soft: #ffe8dc;
+  --danger: #c8324f;
+  --shadow: 0 6px 24px -10px rgba(120, 50, 90, 0.25);
+
+  /* Chart colours, one per part of the cycle. */
+  --phase-period: #e5487c;
+  --phase-follicular: #8a63f2;
+  --phase-fertile: #17a589;
+  --phase-luteal: #e8912d;
 }
 
-html[data-theme="dark"],
-body[data-theme="dark"],
 :root[data-theme="dark"] {
-  --background: #140a17;
-  --foreground: #fcf1f7;
-  --rose: #ff7597;
-  --rose-soft: #381a28;
-  --peach: #57293b;
-  --plum: #f1b3d3;
-  --lavender: #311c44;
-  --lavender-deep: #a78bfa;
-  --mint: #153e34;
-  --mint-deep: #34d399;
-  --gold: #45320c;
-  --gold-deep: #fbbf24;
-  --card: rgba(26, 15, 30, 0.94);
-  --card-glass: rgba(26, 15, 30, 0.82);
-  --border: #42233c;
-  --accent: #ff6b8f;
-  --accent-hover: #ff85a2;
-  --muted: #c9a4bd;
-  --shadow-color: rgba(0, 0, 0, 0.45);
-}
+  --bg: #171021;
+  --surface: #221733;
+  --ink: #f8effa;
+  --muted: #b7a6c6;
+  --line: #3a2a50;
+  --primary: #ff6f9c;
+  --primary-ink: #ff8fb1;
+  --primary-soft: #4a1f36;
+  --on-primary: #2b0f1c;
+  --lilac: #a98bff;
+  --lilac-soft: #2f2350;
+  --mint: #4fd1a1;
+  --mint-soft: #173a30;
+  --sun: #ffc14d;
+  --sun-soft: #40300f;
+  --peach-soft: #43281f;
+  --danger: #ff7a90;
+  --shadow: 0 6px 24px -10px rgba(0, 0, 0, 0.6);
 
-html,
-body {
-  color-scheme: light;
-}
-
-html[data-theme="dark"],
-body[data-theme="dark"] {
-  color-scheme: dark;
+  --phase-period: #e5548a;
+  --phase-follicular: #8f6df2;
+  --phase-fertile: #1fa884;
+  --phase-luteal: #c08025;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-body);
-  --font-display: var(--font-display);
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-primary: var(--primary);
+  --color-primary-ink: var(--primary-ink);
+  --color-primary-soft: var(--primary-soft);
+  --color-on-primary: var(--on-primary);
+  --color-lilac: var(--lilac);
+  --color-lilac-soft: var(--lilac-soft);
+  --color-mint: var(--mint);
+  --color-mint-soft: var(--mint-soft);
+  --color-sun: var(--sun);
+  --color-sun-soft: var(--sun-soft);
+  --color-peach-soft: var(--peach-soft);
+  --color-danger: var(--danger);
+  --font-sans: var(--font-nunito), system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: var(--font-fredoka), var(--font-nunito), system-ui, sans-serif;
+  --shadow-soft: var(--shadow);
+}
+
+html {
+  color-scheme: light;
+  -webkit-text-size-adjust: 100%;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-body), "Nunito", sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.55;
   overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
 }
 
-/* Glassmorphic card classes */
-.glass-card {
-  background: var(--card);
-  border: 1px solid var(--border);
-  backdrop-filter: blur(12px);
-  box-shadow: 0 10px 25px -5px var(--shadow-color);
-  transition: all 0.25s ease;
+/* Soft colour wash behind every screen. */
+.bloom-bg {
+  background:
+    radial-gradient(60rem 28rem at 100% -10%, color-mix(in srgb, var(--primary) 14%, transparent), transparent 60%),
+    radial-gradient(40rem 24rem at -10% 20%, color-mix(in srgb, var(--lilac) 12%, transparent), transparent 60%),
+    var(--bg);
 }
 
-.glass-card:hover {
-  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
-  box-shadow: 0 14px 30px -4px color-mix(in srgb, var(--accent) 20%, var(--shadow-color));
-}
-
-.bloom-gradient {
-  background: radial-gradient(circle at 15% 10%, color-mix(in srgb, var(--accent) 18%, transparent) 0%, transparent 45%),
-              radial-gradient(circle at 85% 80%, color-mix(in srgb, #9333ea 12%, transparent) 0%, transparent 50%),
-              radial-gradient(circle at 50% 50%, color-mix(in srgb, #f59e0b 8%, transparent) 0%, transparent 60%),
-              var(--background);
-}
-
-.react-calendar {
-  border: 0;
-  border-radius: 24px;
-  background: var(--card);
-  color: var(--foreground);
-  width: 100%;
-  padding: 12px;
-  border: 1px solid var(--border);
-  box-shadow: 0 8px 24px var(--shadow-color);
-}
-
-.react-calendar__navigation button,
-.react-calendar__tile {
-  color: var(--foreground);
-  font-family: var(--font-body);
-  font-weight: 600;
-}
-
-.react-calendar__navigation button:disabled {
-  color: var(--muted);
-}
-
-.react-calendar__month-view__weekdays {
-  color: var(--muted);
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.react-calendar__tile {
-  border-radius: 14px;
-  padding: 10px 6px;
-  transition: all 0.2s ease;
-}
-
-.react-calendar__tile:enabled:hover,
-.react-calendar__tile:enabled:focus {
-  background: color-mix(in srgb, var(--accent) 20%, transparent);
-  transform: translateY(-1px);
-}
-
-.react-calendar__tile--now {
-  background: color-mix(in srgb, var(--accent) 18%, transparent);
-  font-weight: bold;
-}
-
-.react-calendar__tile--active {
-  background: var(--accent) !important;
-  color: #fff !important;
-  box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 40%, transparent);
-}
-
-@keyframes floatUp {
-  0%, 100% {
-    transform: translateY(0px) rotate(0deg);
+/* Component classes live in the components layer so utilities (px-0, text-sm...) can override them. */
+@layer components {
+  /* Buttons */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 3rem;
+    padding: 0 1.25rem;
+    border-radius: 999px;
+    font-weight: 800;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: transform 0.12s ease, opacity 0.12s ease, background-color 0.12s ease;
   }
-  50% {
-    transform: translateY(-8px) rotate(2deg);
+
+  .btn:active {
+    transform: scale(0.97);
+  }
+
+  .btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  .btn-primary {
+    background: var(--primary);
+    color: var(--on-primary);
+    box-shadow: 0 8px 18px -8px color-mix(in srgb, var(--primary) 70%, transparent);
+  }
+
+  .btn-soft {
+    background: var(--primary-soft);
+    color: var(--primary-ink);
+  }
+
+  .btn-ghost {
+    background: var(--surface);
+    color: var(--ink);
+    border: 1.5px solid var(--line);
+  }
+
+  .field {
+    width: 100%;
+    min-height: 3rem;
+    padding: 0.7rem 1rem;
+    border-radius: 1rem;
+    border: 1.5px solid var(--line);
+    background: var(--surface);
+    color: var(--ink);
+    font-size: 1rem;
+  }
+
+  .field::placeholder {
+    color: var(--muted);
   }
 }
 
-@keyframes pulseGlow {
-  0%, 100% {
-    opacity: 0.6;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.9;
-    transform: scale(1.04);
-  }
+:where(a, button, input, textarea):focus-visible {
+  outline: 2.5px solid var(--lilac);
+  outline-offset: 2px;
 }
 
-@keyframes popIn {
+/* Die-cut sticker look: white edge, soft shadow, slight tilt. */
+.sticker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #ffffff;
+  border: 3px solid #ffffff;
+  box-shadow: 0 5px 14px -4px rgba(90, 40, 80, 0.35), 0 0 0 1px rgba(90, 40, 80, 0.06);
+  line-height: 1;
+  user-select: none;
+}
+
+@keyframes pop {
   0% {
     opacity: 0;
-    transform: scale(0.85);
-  }
-  70% {
-    transform: scale(1.05);
+    transform: translateY(8px) scale(0.96);
   }
   100% {
     opacity: 1;
-    transform: scale(1);
+    transform: translateY(0) scale(1);
   }
 }
 
-.animate-float {
-  animation: floatUp 5s ease-in-out infinite;
-}
-
-.animate-pulse-glow {
-  animation: pulseGlow 4s ease-in-out infinite;
-}
-
 .animate-pop {
-  animation: popIn 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+  animation: pop 0.25s ease-out both;
 }
 
-/* Custom badges */
-.badge-safe {
-  background: color-mix(in srgb, var(--mint-deep) 15%, var(--card));
-  color: var(--mint-deep);
-  border: 1px solid color-mix(in srgb, var(--mint-deep) 35%, transparent);
+@keyframes floaty {
+  0%,
+  100% {
+    transform: translateY(0) rotate(var(--tilt, 0deg));
+  }
+  50% {
+    transform: translateY(-6px) rotate(var(--tilt, 0deg));
+  }
 }
 
-.badge-fertile {
-  background: color-mix(in srgb, var(--accent) 15%, var(--card));
-  color: var(--accent);
-  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+.floaty {
+  animation: floaty 5s ease-in-out infinite;
 }
 
-.badge-ovulation {
-  background: color-mix(in srgb, var(--gold-deep) 16%, var(--card));
-  color: var(--gold-deep);
-  border: 1px solid color-mix(in srgb, var(--gold-deep) 35%, transparent);
+@keyframes blink {
+  0%,
+  80%,
+  100% {
+    opacity: 0.25;
+  }
+  40% {
+    opacity: 1;
+  }
 }
 
-.badge-period {
-  background: color-mix(in srgb, #e11d48 15%, var(--card));
-  color: #e11d48;
-  border: 1px solid color-mix(in srgb, #e11d48 35%, transparent);
+.typing-dot {
+  animation: blink 1.2s infinite both;
 }
 
-.badge-pms {
-  background: color-mix(in srgb, var(--lavender-deep) 15%, var(--card));
-  color: var(--lavender-deep);
-  border: 1px solid color-mix(in srgb, var(--lavender-deep) 35%, transparent);
-}
-
-/* React Chatbot Kit Complete Theme Integration */
-.react-chatbot-kit-chat-container {
-  width: 100% !important;
-  font-family: var(--font-body) !important;
-  background-color: transparent !important;
-}
-
-.react-chatbot-kit-chat-inner-container {
-  background-color: transparent !important;
-  border-radius: 24px !important;
-}
-
-.react-chatbot-kit-chat-header {
-  display: none !important;
-}
-
-.react-chatbot-kit-chat-message-container {
-  background-color: transparent !important;
-  padding: 10px 4px !important;
-  height: 380px !important;
-  overflow-y: auto !important;
-}
-
-.react-chatbot-kit-chat-bot-message {
-  background-color: color-mix(in srgb, var(--accent) 14%, var(--card)) !important;
-  color: var(--foreground) !important;
-  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent) !important;
-  border-radius: 20px !important;
-  padding: 12px 16px !important;
-  font-size: 0.9rem !important;
-  line-height: 1.6 !important;
-  max-width: 88% !important;
-  box-shadow: 0 4px 14px var(--shadow-color) !important;
-}
-
-.react-chatbot-kit-chat-bot-message-arrow {
-  display: none !important;
-}
-
-.react-chatbot-kit-chat-bot-avatar-container {
-  background-color: var(--accent) !important;
-  width: 36px !important;
-  height: 36px !important;
-  border-radius: 50% !important;
-}
-
-.react-chatbot-kit-user-chat-message {
-  background-color: var(--accent) !important;
-  color: #ffffff !important;
-  border-radius: 20px !important;
-  padding: 12px 16px !important;
-  font-size: 0.9rem !important;
-  font-weight: 600 !important;
-  max-width: 85% !important;
-  box-shadow: 0 4px 15px color-mix(in srgb, var(--accent) 35%, transparent) !important;
-}
-
-.react-chatbot-kit-user-chat-message-arrow {
-  display: none !important;
-}
-
-.react-chatbot-kit-user-avatar-container {
-  background-color: color-mix(in srgb, var(--foreground) 25%, var(--card)) !important;
-  width: 36px !important;
-  height: 36px !important;
-  border-radius: 50% !important;
-}
-
-.react-chatbot-kit-chat-input-container {
-  position: relative !important;
-  bottom: 0 !important;
-  width: 100% !important;
-  padding: 10px 0 0 0 !important;
-  background-color: transparent !important;
-}
-
-.react-chatbot-kit-chat-input-form {
-  display: flex !important;
-  align-items: center !important;
-  gap: 8px !important;
-  width: 100% !important;
-}
-
-.react-chatbot-kit-chat-input {
-  flex: 1 !important;
-  border-radius: 18px !important;
-  padding: 12px 18px !important;
-  font-size: 0.9rem !important;
-  border: 1px solid var(--border) !important;
-  background-color: var(--card) !important;
-  color: var(--foreground) !important;
-  outline: none !important;
-  transition: all 0.2s ease !important;
-}
-
-html[data-theme="dark"] .react-chatbot-kit-chat-input,
-body[data-theme="dark"] .react-chatbot-kit-chat-input,
-html[data-theme="dark"] input.react-chatbot-kit-chat-input,
-body[data-theme="dark"] input.react-chatbot-kit-chat-input {
-  background-color: #1e1122 !important;
-  color: #fdf2f8 !important;
-  border-color: #4a2544 !important;
-}
-
-html[data-theme="dark"] .react-chatbot-kit-chat-bot-message,
-body[data-theme="dark"] .react-chatbot-kit-chat-bot-message {
-  background-color: #26152b !important;
-  color: #fcf1f7 !important;
-  border-color: #4a2544 !important;
-}
-
-.react-chatbot-kit-chat-input::placeholder {
-  color: var(--muted) !important;
-  opacity: 0.8 !important;
-}
-
-.react-chatbot-kit-chat-input:focus {
-  border-color: var(--accent) !important;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent) !important;
-}
-
-.react-chatbot-kit-chat-btn-send {
-  background-color: var(--accent) !important;
-  color: #ffffff !important;
-  border-radius: 18px !important;
-  padding: 0 20px !important;
-  height: 46px !important;
-  font-weight: 700 !important;
-  cursor: pointer !important;
-  border: none !important;
-  transition: all 0.2s ease !important;
-}
-
-.react-chatbot-kit-chat-btn-send:hover {
-  background-color: var(--accent-hover) !important;
-  transform: scale(1.03) !important;
+@media (prefers-reduced-motion: reduce) {
+  .animate-pop,
+  .floaty,
+  .typing-dot {
+    animation: none;
+  }
 }

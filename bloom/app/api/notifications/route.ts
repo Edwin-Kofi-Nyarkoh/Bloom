@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getAuthUserId } from "@/lib/serverAuth";
+import { serverError } from "@/lib/apiHelpers";
 
 const notificationSchema = z.object({
   type: z.enum(["PERIOD_START", "PERIOD_END", "FERTILITY_WINDOW", "SYMPTOM_REMINDER"]),
@@ -45,8 +46,8 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ notification }, { status: 201 });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Internal server error" }, { status: 500 });
+  } catch (err) {
+    return serverError(err);
   }
 }
 

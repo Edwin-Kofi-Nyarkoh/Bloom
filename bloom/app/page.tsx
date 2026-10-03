@@ -1,70 +1,62 @@
 import Link from "next/link";
+import BloomFlower from "@/components/ui/BloomFlower";
+import Sticker from "@/components/ui/Sticker";
+
+const FEATURES = [
+  { emoji: "📅", title: "Know what's coming", body: "See when your next period and fertile days are likely.", tint: "var(--primary-soft)" },
+  { emoji: "😊", title: "One tap a day", body: "Pick a sticker for your mood. That's it.", tint: "var(--sun-soft)" },
+  { emoji: "💬", title: "Ask Bloom AI", body: "Private answers to the questions you don't want to ask out loud.", tint: "var(--lilac-soft)" },
+];
 
 export default function Home() {
   return (
-    <main className="bloom-gradient min-h-screen px-6 py-16">
-      <div className="mx-auto flex max-w-6xl flex-col gap-12">
-        <header className="flex flex-col gap-4">
-          <p className="text-xs uppercase tracking-[0.3em] text-rose-400">Bloom</p>
-          <h1 className="font-display text-4xl text-[#5a2d4b] md:text-6xl">
-            Gentle cycle tracking with smart predictions
+    <main className="bloom-bg min-h-screen px-4 py-5">
+      <div className="mx-auto flex max-w-md flex-col gap-8">
+        <header className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <BloomFlower size={34} />
+            <span className="font-display text-2xl font-semibold text-ink">Bloom</span>
+          </div>
+          <Link href="/login" className="rounded-full px-4 py-2.5 text-sm font-extrabold text-primary-ink">
+            Sign in
+          </Link>
+        </header>
+
+        <section className="relative pt-6 text-center">
+          <Sticker emoji="🌷" size={54} tilt={-14} float className="absolute left-2 top-0" />
+          <Sticker emoji="💗" size={44} tilt={12} float className="absolute right-3 top-6" />
+          <Sticker emoji="✨" size={38} tilt={-6} float className="absolute right-10 top-36" />
+          <div className="mx-auto w-fit">
+            <BloomFlower size={132} className="floaty" />
+          </div>
+          <h1 className="mt-5 font-display text-4xl font-semibold leading-tight text-ink">
+            Your cycle,
+            <br />
+            made simple
           </h1>
-          <p className="max-w-2xl text-lg text-[#5a2d4b]/80">
-            Bloom brings clarity to your cycle. Log periods, symptoms, and mood, then receive
-            AI-assisted insights for your next period, ovulation, and PMS window.
+          <p className="mx-auto mt-3 max-w-xs text-lg text-muted">
+            Track your period, understand your body, and get friendly answers.
           </p>
-          <div className="flex flex-wrap gap-4">
-            <Link
-              href="/signup"
-              className="rounded-full bg-[#ef7a9a] px-6 py-3 text-sm font-semibold text-white"
-            >
-              Create account
+          <div className="mt-7 flex flex-col gap-3">
+            <Link href="/signup" className="btn btn-primary min-h-14 text-lg">
+              Get started free
             </Link>
-            <Link
-              href="/login"
-              className="rounded-full border border-[#f0d6df] px-6 py-3 text-sm font-semibold text-[#5a2d4b]"
-            >
-              Sign in
+            <Link href="/login" className="btn btn-ghost">
+              I already have an account
             </Link>
           </div>
-        </header>
-        <section className="grid gap-6 md:grid-cols-3">
-          {[
-            {
-              title: "Personalized insights",
-              body: "Bloom learns your patterns to refine predictions and cycle guidance.",
-            },
-            {
-              title: "Symptom journaling",
-              body: "Track mood, energy, cramps, and sleep in a few gentle taps.",
-            },
-            {
-              title: "Calendar clarity",
-              body: "Visualize fertile windows, period days, and wellness reminders.",
-            },
-          ].map((card) => (
-            <div
-              key={card.title}
-              className="rounded-3xl border border-[#f0d6df] bg-white/80 p-6 shadow-lg shadow-pink-100"
-            >
-              <h3 className="font-display text-xl text-[#5a2d4b]">{card.title}</h3>
-              <p className="mt-2 text-sm text-[#5a2d4b]/70">{card.body}</p>
+        </section>
+
+        <section className="space-y-3 pb-8">
+          {FEATURES.map((feature) => (
+            <div key={feature.title} className="flex items-center gap-4 rounded-3xl border border-line bg-surface p-4 shadow-soft">
+              <Sticker emoji={feature.emoji} size={52} tilt={-6} tint={feature.tint} />
+              <div>
+                <h2 className="font-display text-lg font-semibold text-ink">{feature.title}</h2>
+                <p className="text-sm text-muted">{feature.body}</p>
+              </div>
             </div>
           ))}
-        </section>
-        <section className="grid gap-6 md:grid-cols-[1.2fr_0.8fr] items-center">
-          <div className="rounded-3xl border border-[#f0d6df] bg-white/80 p-6 shadow-lg shadow-pink-100 fade-in">
-            <h3 className="font-display text-2xl text-[#5a2d4b]">Bloom companion</h3>
-            <p className="mt-2 text-sm text-[#5a2d4b]/70">
-              A calm space for tracking cycles, moods, and gentle reminders. Bloom helps you feel supported every day.
-            </p>
-          </div>
-          <div className="relative h-48 w-full floaty">
-            <div className="absolute right-2 top-2 h-32 w-32 rounded-full bg-[#f2a3b5] opacity-70 blur-xl" />
-            <div className="absolute left-6 top-6 h-20 w-20 rounded-full bg-[#d9f3ea] opacity-70 blur-lg" />
-            <div className="absolute bottom-4 right-10 h-12 w-12 rounded-full bg-[#f1e6ff] opacity-80" />
-            <div className="absolute inset-x-10 bottom-2 h-16 rounded-full bg-white/70 backdrop-blur-sm" />
-          </div>
         </section>
       </div>
     </main>

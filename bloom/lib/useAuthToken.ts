@@ -1,17 +1,11 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { useEffect, useState } from "react";
+import { useStored } from "@/lib/browserStore";
 
+/** The API token for the signed-in account, or for the guest session on this device. */
 export function useAuthToken() {
   const { data } = useSession();
-  const [token, setToken] = useState<string | null>(null);
-
-  useEffect(() => {
-    const sessionToken = (data as any)?.accessToken as string | undefined;
-    const anonToken = typeof window !== "undefined" ? localStorage.getItem("bloom_anon_token") : null;
-    setToken(sessionToken || anonToken);
-  }, [data]);
-
-  return token;
+  const anonToken = useStored("bloom_anon_token");
+  return data?.accessToken || anonToken;
 }

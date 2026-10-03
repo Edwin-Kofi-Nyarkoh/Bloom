@@ -1,64 +1,62 @@
 {
-  "name": "Bloom - Cycle Tracking & Safe Sex Guide",
+  "name": "Bloom - Period & Cycle Tracker",
   "short_name": "Bloom",
-  "description": "Gentle cycle tracking, safe days calculation, fertile window predictions, and supportive AI companion",
+  "description": "Simple period tracking, gentle predictions, and a friendly AI guide",
   "start_url": "/dashboard",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#fff5f8",
-  "theme_color": "#ff5277",
-  "categories": ["health", "lifestyle", "medical"],
+  "background_color": "#fff8f4",
+  "theme_color": "#fff8f4",
+  "categories": [
+    "health",
+    "lifestyle"
+  ],
   "shortcuts": [
     {
-      "name": "Dashboard & Predictions",
-      "short_name": "Dashboard",
-      "url": "/dashboard",
-      "description": "View cycle day, safe days, and next period forecast"
-    },
-    {
-      "name": "Ask Bloom AI Guide",
-      "short_name": "AI Guide",
-      "url": "/chat",
-      "description": "Ask questions about safe sex, fertility, and cramps"
-    },
-    {
-      "name": "Daily Sticker Journal",
-      "short_name": "Journal",
+      "name": "How I feel today",
+      "short_name": "My day",
       "url": "/symptoms",
-      "description": "Log mood stickers and physical symptoms"
+      "description": "Save today's mood and symptoms"
     },
     {
-      "name": "Period Calendar",
+      "name": "Ask Bloom AI",
+      "short_name": "Bloom AI",
+      "url": "/chat",
+      "description": "Chat with your cycle guide"
+    },
+    {
+      "name": "Calendar",
       "short_name": "Calendar",
       "url": "/calendar",
-      "description": "Log period start and end dates"
+      "description": "Add when your period starts and ends"
     }
   ],
   "icons": [
     {
-      "src": "/icon-192.svg",
+      "src": "/icon-192.png",
       "sizes": "192x192",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icon-192.svg",
-      "sizes": "192x192",
-      "type": "image/svg+xml",
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
       "purpose": "maskable"
     },
     {
       "src": "/icon-512.svg",
-      "sizes": "512x512",
+      "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any"
-    },
-    {
-      "src": "/icon-512.svg",
-      "sizes": "512x512",
-      "type": "image/svg+xml",
-      "purpose": "maskable"
     }
-  ]
+  ],
+  "id": "/dashboard"
 }

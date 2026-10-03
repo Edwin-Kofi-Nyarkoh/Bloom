@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUserId } from "@/lib/serverAuth";
-
-function sanitizeUser(user: { passwordHash?: string | null } & Record<string, any>) {
-  const { passwordHash, ...safeUser } = user;
-  return safeUser;
-}
+import { sanitizeUser } from "@/lib/apiHelpers";
 
 export async function GET(req: NextRequest) {
   const userId = await getAuthUserId(req);
